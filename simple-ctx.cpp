@@ -72,24 +72,24 @@ int main(void) {
     ggml_time_init();
 
     // initialize data of matrices to perform matrix multiplication
-    const int rows_A = 4, cols_A = 2;
+    const int rows_A = 4, cols_A = 1;
 
     float matrix_A[rows_A * cols_A] = {
-        2, 8,
-        5, 1,
-        4, 2,
-        8, 6
+        5,
+        5,
+        4,
+        8,
     };
 
-    const int rows_B = 3, cols_B = 2;
+    const int rows_B = 3, cols_B = 1;
     /* Transpose([
         10, 9, 5,
         5, 9, 4
     ]) 2 rows, 3 cols */
     float matrix_B[rows_B * cols_B] = {
-        10, 5,
-        9, 9,
-        5, 4
+        20,
+        9,
+        5,
     };
 
     simple_model model;
@@ -101,11 +101,6 @@ int main(void) {
     // get the result data pointer as a float array to print
     std::vector<float> out_data(ggml_nelements(result));
     memcpy(out_data.data(), result->data, ggml_nbytes(result));
-
-    // expected result:
-    // [ 60.00 55.00 50.00 110.00
-    //   90.00 54.00 54.00 126.00
-    //   42.00 29.00 28.00 64.00 ]
 
     printf("mul mat (%d x %d) (transposed result):\n[", (int) result->ne[0], (int) result->ne[1]);
     for (int j = 0; j < result->ne[1] /* rows */; j++) {
