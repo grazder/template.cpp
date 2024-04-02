@@ -198,11 +198,10 @@ bool load_model(const std::string & fname, simple_model & model) {
             n_tensors++;
         }
 
-        // ggml_allocr_free(alloc);
-        // printf("%s: model size = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
+        printf("%s: model size = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
     }
 
-    // infile.close();
+    infile.close();
     return true;
 }
 
