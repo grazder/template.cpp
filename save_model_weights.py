@@ -54,6 +54,8 @@ def parse_model(checkpoint, outfile):
 if __name__ == "__main__":
     model = Model().cpu()
 
+    print(model.state_dict())
+
     x = torch.tensor([0, 0, 1, 2, 3], dtype=torch.float32).cpu()
     assert model(x) == x.sum() + 1
 
