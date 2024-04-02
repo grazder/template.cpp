@@ -119,12 +119,7 @@ bool load_model(const std::string & fname, simple_model & model) {
         model.tensors["bias"] = model.bias;
     }
 
-    if (!model.backend) {
-        // fallback to CPU backend
-        fprintf(stderr, "%s: using CPU backend\n", __func__);
-        model.backend = ggml_backend_cpu_init();
-    }
-
+    model.backend = ggml_backend_cpu_init();
     if (!model.backend) {
         fprintf(stderr, "%s: ggml_backend_cpu_init() failed\n", __func__);
         return false;
