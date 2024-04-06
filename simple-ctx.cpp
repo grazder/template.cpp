@@ -232,7 +232,7 @@ struct ggml_tensor * compute(const simple_model & model, const std::vector<float
 
     ggml_build_forward_expand(gf, result);
     ggml_graph_compute_with_ctx(ctx, gf, 1);
-    // ggml_graph_print(gf);
+    ggml_graph_print(gf);
     
     ggml_free(ctx);
     return result;
@@ -251,12 +251,13 @@ int main(void) {
     // get the result data pointer as a float array to print
     std::vector<float> out_data(ggml_nelements(result));
     memcpy(out_data.data(), result->data, ggml_nbytes(result));
+    
+    printf("Result: [");
     for (int i = 0; i < result->ne[0]; i++) {
-        printf(" %.2f", out_data[i]);
+        printf("%.2f, ", out_data[i]);
     }
-    printf("\n");
+    printf("]\n");
 
-    // free memory
     ggml_free(model.ctx);
     return 0;
 }
