@@ -134,7 +134,6 @@ bool load_model(const std::string & fname, simple_model & model) {
 
     // load weights
     {
-        int n_tensors = 0;
         size_t total_size = 0;
 
         while(true) {
@@ -195,7 +194,6 @@ bool load_model(const std::string & fname, simple_model & model) {
             infile.read(reinterpret_cast<char *>(tensor -> data), ggml_nbytes(tensor));
 
             total_size += ggml_nbytes(tensor);
-            n_tensors++;
         }
 
         printf("%s: model size = %8.2f MB\n", __func__, total_size/1024.0/1024.0);
@@ -205,74 +203,58 @@ bool load_model(const std::string & fname, simple_model & model) {
     return true;
 }
 
-// // build the compute graph to perform a matrix multiplication
-// struct ggml_cgraph * build_graph(const simple_model& model) {
-//     struct ggml_cgraph  * gf = ggml_new_graph(model.ctx);
+// compute with backend
+struct ggml_tensor * compute(const simple_model & model, const std::vector<float> & input) {
+    static size_t buf_size = model.hparams.in_channels * sizeof(float) * 1024 * 1024;
+    static void * buf = malloc(buf_size);
 
-//     // result = a*b^T
-//     struct ggml_tensor * result = ggml_mul_mat(model.ctx, model.a, model.b);
+    struct ggml_init_params params = {
+        /*.mem_size   =*/ buf_size,
+        /*.mem_buffer =*/ buf,
+        /*.no_alloc   =*/ false,
+    };
 
-//     ggml_build_forward_expand(gf, result);
-//     return gf;
-// }
+    struct ggml_context * ctx = ggml_init(params);
+    struct ggml_cgraph  * gf = ggml_new_graph(ctx);
 
-// // compute with backend
-// struct ggml_tensor * compute(const simple_model & model) {
-//     struct ggml_cgraph * gf = build_graph(model);
+    // creating input tensor
+    struct ggml_tensor * inp_tensor = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, model.hparams.in_channels);
+    memcpy(inp_tensor -> data, input.data(), ggml_nbytes(inp_tensor));
+    ggml_set_name(inp_tensor, "inp_tensor");
+    
+    // forward
+    struct ggml_tensor * result = ggml_add(
+        ctx,
+        ggml_mul_mat(ctx, model.fc_w, inp_tensor), 
+        model.bias
+    );  
+    ggml_set_name(result, "result");
 
-//     int n_threads = 1; // number of threads to perform some operations with multi-threading
-
-//     ggml_graph_compute_with_ctx(model.ctx, gf, n_threads);
-
-//     // in this case, the output tensor is the last one in the graph
-//     return gf->nodes[gf->n_nodes - 1];
-// }
+    ggml_build_forward_expand(gf, result);
+    ggml_graph_compute_with_ctx(ctx, gf, 1);
+    // ggml_graph_print(gf);
+    
+    ggml_free(ctx);
+    return result;
+}
 
 int main(void) {
     ggml_time_init();
 
-    // // initialize data of matrices to perform matrix multiplication
-    // const int rows_A = 4, cols_A = 1;
-
-    // float matrix_A[rows_A * cols_A] = {
-    //     5,
-    //     5,
-    //     4,
-    //     8,
-    // };
-
-    // const int rows_B = 3, cols_B = 1;
-    // /* Transpose([
-    //     10, 9, 5,
-    //     5, 9, 4
-    // ]) 2 rows, 3 cols */
-    // float matrix_B[rows_B * cols_B] = {
-    //     20,
-    //     9,
-    //     5,
-    // };
-
     simple_model model;
     load_model("../ggml-model.bin", model);
 
-    // // perform computation in cpu
-    // struct ggml_tensor * result = compute(model);
+    // perform computation in cpu
+    std::vector<float> input = {1, 2, 3, 4, 5};
+    struct ggml_tensor * result = compute(model, input);
 
-    // // get the result data pointer as a float array to print
-    // std::vector<float> out_data(ggml_nelements(result));
-    // memcpy(out_data.data(), result->data, ggml_nbytes(result));
-
-    // printf("mul mat (%d x %d) (transposed result):\n[", (int) result->ne[0], (int) result->ne[1]);
-    // for (int j = 0; j < result->ne[1] /* rows */; j++) {
-    //     if (j > 0) {
-    //         printf("\n");
-    //     }
-
-    //     for (int i = 0; i < result->ne[0] /* cols */; i++) {
-    //         printf(" %.2f", out_data[j * result->ne[0] + i]);
-    //     }
-    // }
-    // printf(" ]\n");
+    // get the result data pointer as a float array to print
+    std::vector<float> out_data(ggml_nelements(result));
+    memcpy(out_data.data(), result->data, ggml_nbytes(result));
+    for (int i = 0; i < result->ne[0]; i++) {
+        printf(" %.2f", out_data[i]);
+    }
+    printf("\n");
 
     // free memory
     ggml_free(model.ctx);
