@@ -19,8 +19,10 @@ python save_model_weights.py
 ## Build
 
 ```
-mkdir build; cd build
-cmake ..; make
+mkdir build
+cd build
+cmake ..
+make
 ./model
 ```
 
@@ -29,7 +31,7 @@ cmake ..; make
 - [x] Basic FF example
 - [ ] Python-CPP tests
 - [ ] Trying on real model
-- [ ] Adept template for real case usage
+- [ ] Adapt template for real case usage
 - [ ] Writing comments
 - [ ] Add argparse for `model.cpp`
 - [ ] Support FP16
