@@ -25,6 +25,7 @@ cmake ..; make
 ## TODO
 
 - [x] Basic FF example
+- [ ] Python-CPP tests
 - [ ] Trying on real model
 - [ ] Adept template for real case usage
 - [ ] Support FP16
