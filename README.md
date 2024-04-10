@@ -28,7 +28,7 @@ make
 
 Run:
 ```
-./model
+./template
 ```
 
 ## TODO

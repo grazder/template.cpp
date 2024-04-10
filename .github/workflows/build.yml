@@ -17,10 +17,10 @@ jobs:
         run: git clone https://github.com/ggerganov/ggml.git
 
       - name: Install Packages from requirements.txt
-        run: pip install -r requirements.txt
+        run: pip install -r model_utils/requirements.txt
 
       - name: Saving Model Weights
-        run: python save_model_weights.py
+        run: python weights_export/export_model_weights.py
 
       - name: Create Build Environment
         run: mkdir build
@@ -33,6 +33,6 @@ jobs:
         working-directory: ./build
         run: make
 
-      - name: Test model.cpp
+      - name: Test
         working-directory: ./build
-        run: ./model
+        run: ./template
