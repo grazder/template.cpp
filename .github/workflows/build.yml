@@ -12,17 +12,27 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Clone ggerganov/ggml
         run: git clone https://github.com/ggerganov/ggml.git
-      - name: Install packages
+
+      - name: Install Packages from requirements.txt
         run: pip install -r requirements.txt
-      - name: Saving model weights
+
+      - name: Saving Model Weights
         run: python save_model_weights.py
-      - name: Creating build folder
-        run: mkdir build; cd build
-      - name: Cmake
-        run: cmake ..
-      - name: Make
+
+      - name: Create Build Environment
+        run: mkdir build
+
+      - name: Configure CMake
+        working-directory: ./build
+        run: cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGGML_TEST_COVERAGE=ON -DGGML_CLBLAST=ON ..
+
+      - name: Build
+        working-directory: ./build
         run: make
-      - name: Try running model.cpp
+
+      - name: Test model.cpp
+        working-directory: ./build
         run: ./model
