@@ -28,6 +28,7 @@ cmake ..; make
 - [ ] Python-CPP tests
 - [ ] Trying on real model
 - [ ] Adept template for real case usage
+- [ ] Writing comments
 - [ ] Support FP16
 - [ ] Quantization (?)
 
