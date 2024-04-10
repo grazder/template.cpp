@@ -1,0 +1,28 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-latest]
+        python-version: ["3.8"]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clone ggerganov/ggml
+        run: git clone https://github.com/ggerganov/ggml.git
+      - name: Install packages
+        run: pip install -r requirements.txt
+      - name: Saving model weights
+        run: python save_model_weights.py
+      - name: Creating build folder
+        run: mkdir build; cd build
+      - name: Cmake
+        run: cmake ..
+      - name: Make
+        run: make
+      - name: Try running model.cpp
+        run: ./model

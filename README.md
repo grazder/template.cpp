@@ -29,6 +29,7 @@ cmake ..; make
 - [ ] Trying on real model
 - [ ] Adept template for real case usage
 - [ ] Writing comments
+- [ ] Add argparse for `model.cpp`
 - [ ] Support FP16
 - [ ] Quantization (?)
 

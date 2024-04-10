@@ -310,14 +310,15 @@ int main(void)
 {
     ggml_time_init();
 
+    // Create example tensor
+    std::vector<float> input = {1, 2, 3, 4, 5};
+
+    // Load model and run forward
     module model;
     load_model("../ggml-model.bin", model);
-
-    // perform computation in cpu
-    std::vector<float> input = {1, 2, 3, 4, 5};
     struct ggml_tensor *result = compute(model, input);
 
-    // get the result data pointer as a float array to print
+    // Printing
     std::vector<float> out_data(ggml_nelements(result));
     memcpy(out_data.data(), result->data, ggml_nbytes(result));
 
