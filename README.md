@@ -16,13 +16,18 @@ git clone https://github.com/ggerganov/ggml.git
 python save_model_weights.py
 ```
 
-## Build
+## Build & Run
 
+Build:
 ```
 mkdir build
 cd build
 cmake ..
 make
+```
+
+Run:
+```
 ./model
 ```
 
