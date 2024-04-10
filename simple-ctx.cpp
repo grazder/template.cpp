@@ -229,35 +229,45 @@ bool load_model(const std::string & fname, module & model) {
     return true;
 }
 
+struct ggml_tensor * create_input_tensor(const std::vector<float> & input, struct ggml_context * ctx, int32_t shape) {
+    struct ggml_tensor * input_tensor = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, shape);
+    memcpy(input_tensor -> data, input.data(), ggml_nbytes(input_tensor));
+    ggml_set_name(input_tensor, "input_tensor");
+
+    return input_tensor;
+}
+
+struct ggml_tensor * forward(ggml_tensor * input_tensor, struct ggml_context * ctx, const module & model) {
+    struct ggml_cgraph  * gf = ggml_new_graph(ctx);
+    struct ggml_tensor * result = ggml_add(
+        ctx,
+        ggml_mul_mat(ctx, model.fc_w, input_tensor), 
+        model.bias
+    );  
+
+    ggml_set_name(result, "result");
+    ggml_build_forward_expand(gf, result);
+    ggml_graph_compute_with_ctx(ctx, gf, 1);
+
+    return result;
+}
+
 // compute with backend
 struct ggml_tensor * compute(const module & model, const std::vector<float> & input) {
-    static size_t buf_size = model.hparams.in_channels * sizeof(float) * 1024 * 1024;
-    static void * buf = malloc(buf_size);
+    int32_t shape = model.hparams.in_channels;
 
+    static size_t buf_size = shape * sizeof(float) * 1024 * 1024;
+    static void * buf = malloc(buf_size);
     struct ggml_init_params params = {
         /*.mem_size   =*/ buf_size,
         /*.mem_buffer =*/ buf,
         /*.no_alloc   =*/ false,
     };
-
     struct ggml_context * ctx = ggml_init(params);
-    struct ggml_cgraph  * gf = ggml_new_graph(ctx);
 
-    // creating input tensor
-    struct ggml_tensor * inp_tensor = ggml_new_tensor_1d(ctx, GGML_TYPE_F32, model.hparams.in_channels);
-    memcpy(inp_tensor -> data, input.data(), ggml_nbytes(inp_tensor));
-    ggml_set_name(inp_tensor, "inp_tensor");
-    
-    // forward
-    struct ggml_tensor * result = ggml_add(
-        ctx,
-        ggml_mul_mat(ctx, model.fc_w, inp_tensor), 
-        model.bias
-    );  
-    ggml_set_name(result, "result");
+    struct ggml_tensor * input_tensor = create_input_tensor(input, ctx, shape);
+    struct ggml_tensor * result = forward(input_tensor, ctx, model);
 
-    ggml_build_forward_expand(gf, result);
-    ggml_graph_compute_with_ctx(ctx, gf, 1);
     // ggml_graph_print(gf);
     
     ggml_free(ctx);
