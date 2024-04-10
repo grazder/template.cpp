@@ -1,9 +1,6 @@
 # GGML Template
 
-[![Build Actions Status][actions-build-badge]][actions-build-link]
-
-[actions-pip-badge]:        https://github.com/grazder/ggml_template/actions/workflows/build.yml/badge.svg
-[actions-build-link]:       https://github.com/grazder/ggml_template/actions/workflows/build.yml
+[![Build Actions Status](https://github.com/grazder/ggml_template/actions/workflows/build.yml/badge.svg)](https://github.com/grazder/ggml_template/actions/workflows/build.yml)
 
 Template to start writing code for your ggml model
 
