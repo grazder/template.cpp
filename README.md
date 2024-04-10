@@ -35,6 +35,7 @@ Run:
 
 - [x] Basic FF example
 - [ ] Python-CPP tests
+- [ ] Add GGUF 
 - [ ] Trying on real model
 - [ ] Adapt template for real case usage
 - [ ] Writing comments
