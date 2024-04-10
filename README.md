@@ -1,5 +1,7 @@
 # GGML Template
 
+[![Build Actions Status][actions-build-badge]][actions-build-link]
+
 Template to start writing code for your ggml model
 
 ## Install
