@@ -2,7 +2,7 @@
 
 [![Build Actions Status](https://github.com/grazder/ggml_template/actions/workflows/build.yml/badge.svg)](https://github.com/grazder/ggml_template/actions/workflows/build.yml)
 
-Template to start writing code using [`GGML`](https://github.com/ggerganov/ggml.git).
+A template for getting started writing code using [`GGML`](https://github.com/ggerganov/ggml.git).
 
 ## Install
 
