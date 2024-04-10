@@ -17,7 +17,7 @@ jobs:
         run: git clone https://github.com/ggerganov/ggml.git
 
       - name: Install Packages from requirements.txt
-        run: pip install -r model_utils/requirements.txt
+        run: pip install -r weights_export/requirements.txt
 
       - name: Saving Model Weights
         run: python weights_export/export_model_weights.py
