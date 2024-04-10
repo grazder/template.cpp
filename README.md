@@ -1,4 +1,4 @@
-# 💾 template.cpp
+# 💽 template.cpp
 
 [![Build Actions Status](https://github.com/grazder/ggml_template/actions/workflows/build.yml/badge.svg)](https://github.com/grazder/ggml_template/actions/workflows/build.yml)
 
