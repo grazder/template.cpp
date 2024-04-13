@@ -1,0 +1,8 @@
+[submodule "ggml"]
+	path = ggml
+	url = https://github.com/ggerganov/ggml.git
+    branch = master
+[submodule "pybind11"]
+    path = tests/pybind11
+    url = https://github.com/pybind/pybind11.git
+    branch = master
