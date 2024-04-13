@@ -12,9 +12,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Clone ggerganov/ggml
-        run: git clone https://github.com/ggerganov/ggml.git
+        with:
+          submodules: recursive
 
       - name: Install Packages from requirements.txt
         run: pip install -r weights_export/requirements.txt
