@@ -1,4 +1,5 @@
 #include "template.h"
+#include <string>
 
 int main(void)
 {
