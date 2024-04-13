@@ -1,5 +1,3 @@
 build
 .vscode
 *.bin
-ggml
-pybind11
