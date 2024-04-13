@@ -6,3 +6,6 @@
     path = tests/pybind11
     url = https://github.com/pybind/pybind11.git
     branch = master
+[submodule "tests/pybind11"]
+	path = tests/pybind11
+	url = https://github.com/pybind/pybind11.git
