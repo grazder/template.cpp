@@ -1,4 +1,5 @@
 #include "ggml.h"
+#include "template.h"
 #include "ggml-backend.h"
 
 #include <cassert>
@@ -10,40 +11,11 @@
 #include <string>
 #include <vector>
 
-#define FILE_MAGIC 'ggml'
-
-static const size_t MB = 1024 * 1024;
-
 template <typename T>
 static void read_safe(std::ifstream &infile, T &dest)
 {
     infile.read(reinterpret_cast<char *>(&dest), sizeof(T));
 }
-
-struct model_hparams
-{
-    int32_t in_channels = 1;
-    int32_t bias_size = 1;
-};
-
-struct module
-{
-    model_hparams hparams;
-
-    ggml_backend_t backend = NULL;
-    ggml_backend_buffer_t buffer_w;
-
-    // weights
-    struct ggml_tensor *fc_w;
-    struct ggml_tensor *bias;
-
-    // the context to define the tensor information (dimensions, size, memory data)
-    struct ggml_context *ctx;
-
-    std::map<std::string, struct ggml_tensor *> tensors;
-
-    ggml_backend_buffer_t buffer;
-};
 
 void create_model_weight_tensors(module &model)
 {
@@ -304,31 +276,4 @@ struct ggml_tensor *compute(const module &model, const std::vector<float> &input
 
     ggml_free(ctx);
     return result;
-}
-
-int main(void)
-{
-    ggml_time_init();
-
-    // Create example tensor
-    std::vector<float> input = {1, 2, 3, 4, 5};
-
-    // Load model and run forward
-    module model;
-    load_model("../ggml-model.bin", model);
-    struct ggml_tensor *result = compute(model, input);
-
-    // Printing
-    std::vector<float> out_data(ggml_nelements(result));
-    memcpy(out_data.data(), result->data, ggml_nbytes(result));
-
-    printf("Result: [");
-    for (int i = 0; i < result->ne[0]; i++)
-    {
-        printf("%.2f, ", out_data[i]);
-    }
-    printf("]\n");
-
-    ggml_free(model.ctx);
-    return 0;
 }
