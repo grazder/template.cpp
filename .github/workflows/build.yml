@@ -34,4 +34,4 @@ jobs:
 
       - name: Test
         working-directory: ./build
-        run: ./template
+        run: ./example/main
