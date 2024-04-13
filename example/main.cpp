@@ -1,8 +1,6 @@
 #include "template.h"
 
-#include <map>
-#include <string>
-#include <vector>
+#include <string.h>
 
 int main(void)
 {
