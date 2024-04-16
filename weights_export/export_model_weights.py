@@ -2,6 +2,8 @@ import torch
 import struct
 import numpy as np
 
+torch.manual_seed(52)
+
 
 class Model(torch.nn.Module):
     def __init__(self):

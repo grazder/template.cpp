@@ -32,6 +32,5 @@ jobs:
         working-directory: ./build
         run: make
 
-      - name: Test Run
-        working-directory: ./build
-        run: ./example/main
+      - name: Run tests
+        run: python -m pytest tests/test.py

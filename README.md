@@ -31,10 +31,16 @@ Run:
 ./template
 ```
 
+## Tests
+
+```
+python -m pytest tests/test.py
+```
+
 ## TODO
 
 - [x] Basic FF example
-- [ ] Python-CPP tests
+- [x] Python-CPP tests
 - [ ] Add GGUF 
 - [ ] Trying on real model
 - [ ] Adapt template for real case usage
