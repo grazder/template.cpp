@@ -29,7 +29,7 @@ make
 
 Run:
 ```
-./template
+./example/main
 ```
 
 ## Tests
