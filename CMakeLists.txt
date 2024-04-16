@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.12)
 project(template.cpp)
 set(TEMPLATE_LIB template)
-set(BINDINGS_LIB py_bindings)
+set(BINDINGS_LIB bindings)
 
 add_subdirectory(ggml)
 add_library(${TEMPLATE_LIB} STATIC template.cpp template.h)
 
 add_subdirectory(example)
 add_subdirectory(tests/pybind11)
-pybind11_add_module(${BINDINGS_LIB} tests/py_bindings.cpp)
+pybind11_add_module(${BINDINGS_LIB} tests/bindings.cpp)
 
 target_link_libraries(${BINDINGS_LIB} PRIVATE ${TEMPLATE_LIB})
 target_link_libraries(${TEMPLATE_LIB} PUBLIC ggml)
