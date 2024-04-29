@@ -1,6 +1,7 @@
 import torch
 import struct
 import numpy as np
+from gguf import GGUFWriter
 
 torch.manual_seed(52)
 
@@ -17,40 +18,19 @@ class Model(torch.nn.Module):
         return x
 
 
-def parse_hparams(outfile):
+def parse_hparams(gguf_writer):
     in_channels = 5
-    outfile.write(struct.pack("i", in_channels))
+    gguf_writer.add_int32("in_channels", in_channels)
 
 
-def parse_model(checkpoint, outfile):
+def parse_model(checkpoint, gguf_writer):
     """Load encodec model checkpoint."""
-    n_f32 = 0
-
     for name in checkpoint.keys():
         var_data = checkpoint[name]
-        var_data = var_data.numpy().squeeze()
+        var_data = var_data.numpy().squeeze().astype(np.float32)
+        gguf_writer.add_tensor(name, var_data)
 
         print(f"Processing variable: {name} with shape: {var_data.shape}")
-
-        print("  Converting to float32")
-        var_data = var_data.astype(np.float32)
-        ftype_cur = 0
-        n_f32 += 1
-
-        n_dims = len(var_data.shape)
-        encoded_name = name.encode("utf-8")
-        outfile.write(struct.pack("iii", n_dims, len(encoded_name), ftype_cur))
-
-        for i in range(n_dims):
-            outfile.write(struct.pack("i", var_data.shape[n_dims - 1 - i]))
-
-        outfile.write(encoded_name)
-        var_data.tofile(outfile)
-
-    outfile.close()
-
-    print()
-    print(f"n_f32: {n_f32}")
 
 
 if __name__ == "__main__":
@@ -63,12 +43,17 @@ if __name__ == "__main__":
 
     checkpoint = model.state_dict()
 
-    # Step 1: insert ggml magic
-    outfile = open("ggml-model.bin", "wb")
-    outfile.write(struct.pack("i", 0x67676D6C))
+    gguf_writer = GGUFWriter("example.gguf", "linear")
 
     # Step 2: insert hyperparameters
-    parse_hparams(outfile)
+    parse_hparams(gguf_writer)
 
     # Step 3: insert weights
-    parse_model(checkpoint, outfile)
+    parse_model(checkpoint, gguf_writer)
+
+    # Step 4: saving model and hparams to file
+    gguf_writer.write_header_to_file()
+    gguf_writer.write_kv_data_to_file()
+    gguf_writer.write_tensors_to_file()
+
+    gguf_writer.close()

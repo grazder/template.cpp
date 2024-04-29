@@ -32,7 +32,7 @@ bool verify_magic(std::ifstream &infile)
 {
     uint32_t magic;
     read_safe(infile, magic);
-    if (magic != FILE_MAGIC)
+    if (magic != GGUF_FILE_MAGIC)
     {
         fprintf(stderr, "%s: invalid model file (bad magic)\n", __func__);
         return false;
@@ -40,10 +40,10 @@ bool verify_magic(std::ifstream &infile)
     return true;
 }
 
-void load_hparams(std::ifstream &infile, module &model)
+void load_hparams(gguf_context *ctx, module &model)
 {
     auto &hparams = model.hparams;
-    read_safe(infile, hparams.in_channels);
+    // gguf_get_key(ctx, "in_channels", );
     printf("%s: in_channels = %d\n", __func__, hparams.in_channels);
 }
 
@@ -190,44 +190,52 @@ bool load_model(const std::string &fname, module &model)
 {
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, fname.c_str());
 
-    auto infile = std::ifstream(fname, std::ios::binary);
-    if (!infile)
+    struct ggml_context *meta = NULL;
+
+    struct gguf_init_params params = {
+        /*.no_alloc = */ true,
+        /*.ctx      = */ &meta,
+    };
+
+    struct gguf_context *ctx = gguf_init_from_file(fname.c_str(), params);
+
+    if (!ctx)
     {
         fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());
         return false;
     }
 
-    if (!verify_magic(infile))
-    {
-        return false;
-    }
+    const int n_tensors = gguf_get_n_tensors(ctx);
+    const int n_kv = gguf_get_n_kv(ctx);
+    printf("N_TENSORS: %i\n", n_tensors);
+    printf("N_KV: %i\n", n_kv);
 
-    load_hparams(infile, model);
-    size_t ctx_size = evaluate_context_size(model);
+    // load_hparams(ctx, model);
+    // size_t ctx_size = evaluate_context_size(model);
 
-    if (!init_model_context(model, ctx_size))
-    {
-        return false;
-    }
+    // if (!init_model_context(model, ctx_size))
+    // {
+    //     return false;
+    // }
 
-    create_model_weight_tensors(model);
+    // create_model_weight_tensors(model);
 
-    if (!init_model_backend(model))
-    {
-        return false;
-    }
+    // if (!init_model_backend(model))
+    // {
+    //     return false;
+    // }
 
-    if (!allocate_model_buffer(model))
-    {
-        return false;
-    }
+    // if (!allocate_model_buffer(model))
+    // {
+    //     return false;
+    // }
 
-    if (!load_weights(infile, model))
-    {
-        return false;
-    }
+    // if (!load_weights(infile, model))
+    // {
+    //     return false;
+    // }
 
-    infile.close();
+    // infile.close();
     return true;
 }
 

@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#define FILE_MAGIC 'ggml'
+#define GGUF_FILE_MAGIC 0x46554747 // "GGUF"
 
 static const size_t MB = 1024 * 1024;
 
