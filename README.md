@@ -42,7 +42,8 @@ python -m pytest tests/test.py
 
 - [x] Basic FF example
 - [x] Python-CPP tests
-- [ ] Add GGUF 
+- [x] Add GGUF
+- [ ] Make cleaning
 - [ ] Try on real model
 - [ ] Adapt template for real case usage
 - [ ] Write comments
