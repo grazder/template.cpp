@@ -13,7 +13,7 @@ except ImportError:
 
 from weights_export.export_model_weights import Model
 
-MODEL_PATH = "ggml-model.bin"
+MODEL_PATH = "example.gguf"
 
 success, cpp_model = bindings.load_model(MODEL_PATH)
 if not success:
