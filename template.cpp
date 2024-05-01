@@ -106,7 +106,7 @@ size_t evaluate_context_size(module &model, const int n_tensors, gguf_context *c
     return model_size;
 }
 
-bool init_model_context(module &model, const int n_tensors)
+void init_model_context(module &model, const int n_tensors)
 {
     struct ggml_init_params params = {
         /* .mem_size   = */ (n_tensors + 1) * ggml_tensor_overhead(),
@@ -118,30 +118,32 @@ bool init_model_context(module &model, const int n_tensors)
 
     if (!model.ctx)
     {
-        fprintf(stderr, "%s: ggml_init() failed\n", __func__);
-        return false;
+        throw std::runtime_error(format("%s: ggml_init() failed\n", __func__));
     }
-    return true;
 }
 
-bool init_model_backend(module &model)
+void init_model_backend(module &model)
 {
     model.backend = ggml_backend_cpu_init();
     if (!model.backend)
     {
-        fprintf(stderr, "%s: ggml_backend_cpu_init() failed\n", __func__);
-        return false;
+        throw std::runtime_error(format("%s: ggml_backend_cpu_init() failed\n", __func__));
     }
-    return true;
 }
 
-bool allocate_model_buffer(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta, std::ifstream &fin)
+void allocate_model_buffer(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta, const std::string &fname)
 {
+    auto fin = std::ifstream(fname, std::ios::binary);
+
+    if (!fin)
+    {
+        fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());
+    }
+
     model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, model.backend);
     if (!model.buffer)
     {
-        printf("%s: failed to allocate memory for the model\n", __func__);
-        return false;
+        throw std::runtime_error(format("%s: failed to allocate memory for the model\n", __func__));
     }
 
     for (int i = 0; i < n_tensors; ++i)
@@ -152,9 +154,8 @@ bool allocate_model_buffer(module &model, const int n_tensors, gguf_context *ctx
         fin.seekg(offset, std::ios::beg);
         if (!fin)
         {
-            printf("%s: failed to seek for tensor %s\n", __func__, name);
             gguf_free(ctx);
-            return false;
+            throw std::runtime_error(format("%s: failed to seek for tensor %s\n", __func__, name));
         }
         int num_bytes = ggml_nbytes(cur);
         if (ggml_backend_buffer_is_host(model.buffer))
@@ -163,10 +164,10 @@ bool allocate_model_buffer(module &model, const int n_tensors, gguf_context *ctx
             fin.read(reinterpret_cast<char *>(cur->data), num_bytes);
         }
     }
-    return true;
+    fin.close();
 }
 
-bool load_model(const std::string &fname, module &model)
+void load_model(const std::string &fname, module &model)
 {
     fprintf(stderr, "%s: loading model from '%s'\n", __func__, fname.c_str());
 
@@ -181,80 +182,21 @@ bool load_model(const std::string &fname, module &model)
 
     if (!ctx)
     {
-        fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());
-        return false;
+        throw std::runtime_error(format("%s: failed to open '%s'\n", __func__, fname.c_str()));
     }
 
     const int n_tensors = gguf_get_n_tensors(ctx);
     const int n_kv = gguf_get_n_kv(ctx);
     printf("%s: loaded meta data with %d key-value pairs and %d tensors from %s\n", __func__, n_kv, n_tensors, fname.c_str());
 
-    {
-        std::map<enum ggml_type, uint32_t> n_type;
-
-        for (int i = 0; i < n_tensors; i++)
-        {
-            enum ggml_type type = gguf_get_tensor_type(ctx, i);
-
-            n_type[type]++;
-        }
-
-        for (int i = 0; i < n_kv; i++)
-        {
-            const char *name = gguf_get_key(ctx, i);
-            const enum gguf_type type = gguf_get_kv_type(ctx, i);
-            const std::string type_name =
-                type == GGUF_TYPE_ARRAY
-                    ? format("%s[%s,%d]", gguf_type_name(type), gguf_type_name(gguf_get_arr_type(ctx, i)), gguf_get_arr_n(ctx, i))
-                    : gguf_type_name(type);
-
-            printf("%s: key: %s - value_type: %s\n", __func__, name, type_name.c_str());
-        }
-
-        // print type counts
-        for (auto &kv : n_type)
-        {
-            if (kv.second == 0)
-            {
-                continue;
-            }
-
-            printf("%s: type %4s: %4d tensors\n", __func__, ggml_type_name(kv.first), kv.second);
-        }
-    }
-
     size_t model_size = evaluate_context_size(model, n_tensors, ctx, meta);
 
-    if (!init_model_backend(model))
-    {
-        return false;
-    }
-
-    if (!init_model_context(model, n_tensors))
-    {
-        return false;
-    }
-
+    init_model_backend(model);
+    init_model_context(model, n_tensors);
     add_tensors_to_context(model, n_tensors, ctx, meta);
-
-    auto fin = std::ifstream(fname, std::ios::binary);
-    if (!fin)
-    {
-        fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());
-        return false;
-    }
-
-    if (!allocate_model_buffer(model, n_tensors, ctx, meta, fin))
-    {
-        return false;
-    }
-
-    fin.close();
-
+    allocate_model_buffer(model, n_tensors, ctx, meta, fname);
     load_hparams(model, ctx);
     load_weights(model);
-
-    return true;
 }
 
 struct ggml_tensor *create_input_tensor(const std::vector<float> &input, struct ggml_context *ctx, int32_t shape)
@@ -294,7 +236,6 @@ struct ggml_tensor *compute(const module &model, const std::vector<float> &input
         /*.no_alloc   =*/false,
     };
     struct ggml_context *ctx = ggml_init(params);
-
     struct ggml_tensor *input_tensor = create_input_tensor(input, ctx, shape);
     struct ggml_tensor *result = forward(input_tensor, ctx, model);
 

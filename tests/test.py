@@ -15,9 +15,7 @@ from weights_export.export_model_weights import Model
 
 MODEL_PATH = "example.gguf"
 
-success, cpp_model = bindings.load_model(MODEL_PATH)
-if not success:
-    raise ValueError("Failed to load model!")
+cpp_model = bindings.load_model(MODEL_PATH)
 
 py_model = Model().cpu()
 

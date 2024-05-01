@@ -18,10 +18,10 @@ PYBIND11_MODULE(bindings, m) {
         // .def_readwrite("ctx", &module::ctx)
         .def_readwrite("tensors", &module::tensors);
     
-    m.def("load_model", [](const std::string& fname) -> std::tuple<bool, py::object> {
+    m.def("load_model", [](const std::string& fname) -> py::object {
         module model;
-        bool success = load_model(fname, model);
-        return std::make_tuple(success, success ? py::cast(model) : py::cast(nullptr));
+        load_model(fname, model);
+        return py::cast(model);
     }, "A function to load the model");
     
     m.def("compute", [](const module& model, const std::vector<float>& input) {

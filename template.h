@@ -34,5 +34,5 @@ struct module
     ggml_backend_buffer_t buffer;
 };
 
-bool load_model(const std::string &fname, module &model);
+void load_model(const std::string &fname, module &model);
 struct ggml_tensor *compute(const module &model, const std::vector<float> &input);
