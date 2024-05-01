@@ -17,61 +17,99 @@ static void read_safe(std::ifstream &infile, T &dest)
     infile.read(reinterpret_cast<char *>(&dest), sizeof(T));
 }
 
-void create_model_weight_tensors(module &model)
+void add_tensors_to_context(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta)
 {
-    const auto &hparams = model.hparams;
-
-    model.fc_w = ggml_new_tensor_1d(model.ctx, GGML_TYPE_F32, hparams.in_channels);
-    model.bias = ggml_new_tensor_1d(model.ctx, GGML_TYPE_F32, hparams.bias_size);
-
-    model.tensors["fc.weight"] = model.fc_w;
-    model.tensors["bias"] = model.bias;
-}
-
-bool verify_magic(std::ifstream &infile)
-{
-    uint32_t magic;
-    read_safe(infile, magic);
-    if (magic != GGUF_FILE_MAGIC)
+    for (int i = 0; i < n_tensors; ++i)
     {
-        fprintf(stderr, "%s: invalid model file (bad magic)\n", __func__);
-        return false;
+        const char *name = gguf_get_tensor_name(ctx, i);
+        struct ggml_tensor *t = ggml_get_tensor(meta, name);
+        struct ggml_tensor *cur = ggml_dup_tensor(model.ctx, t);
+        ggml_set_name(cur, name);
     }
-    return true;
 }
 
-void load_hparams(gguf_context *ctx, module &model)
+static std::string format(const char *fmt, ...)
+{
+    va_list ap;
+    va_list ap2;
+    va_start(ap, fmt);
+    va_copy(ap2, ap);
+    int size = vsnprintf(NULL, 0, fmt, ap);
+    GGML_ASSERT(size >= 0 && size < INT_MAX); // NOLINT
+    std::vector<char> buf(size + 1);
+    int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
+    GGML_ASSERT(size2 == size);
+    va_end(ap2);
+    va_end(ap);
+    return std::string(buf.data(), buf.size());
+}
+
+static int get_key_idx(const gguf_context *ctx, const char *key)
+{
+    int i = gguf_find_key(ctx, key);
+    if (i == -1)
+    {
+        printf("key %s not found in file\n", key);
+    }
+
+    return i;
+}
+
+static int32_t get_i32(const gguf_context *ctx, const std::string &key)
+{
+    const int i = get_key_idx(ctx, key.c_str());
+
+    return gguf_get_val_i32(ctx, i);
+}
+
+static struct ggml_tensor *get_tensor(struct ggml_context *ctx, const std::string &name)
+{
+    struct ggml_tensor *cur = ggml_get_tensor(ctx, name.c_str());
+    if (!cur)
+    {
+        throw std::runtime_error(format("%s: unable to find tensor %s\n", __func__, name.c_str()));
+    }
+
+    return cur;
+}
+
+void load_weights(module &model)
+{
+    model.fc_w = get_tensor(model.ctx, "fc.weight");
+    model.bias = get_tensor(model.ctx, "bias");
+}
+
+void load_hparams(module &model, gguf_context *ctx)
 {
     auto &hparams = model.hparams;
-    // gguf_get_key(ctx, "in_channels", );
+    hparams.in_channels = get_i32(ctx, "in_channels");
     printf("%s: in_channels = %d\n", __func__, hparams.in_channels);
 }
 
-size_t evaluate_context_size(module &model)
+size_t evaluate_context_size(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta)
 {
-    const auto &hparams = model.hparams;
+    size_t model_size = 0;
 
-    size_t ctx_size = 0;
+    for (int i = 0; i < n_tensors; ++i)
+    {
+        const char *name = gguf_get_tensor_name(ctx, i);
+        const size_t offset = gguf_get_tensor_offset(ctx, i);
+        enum ggml_type type = gguf_get_tensor_type(ctx, i);
+        struct ggml_tensor *cur = ggml_get_tensor(meta, name);
+        size_t tensor_size = ggml_nbytes(cur);
+        model_size += tensor_size;
 
-    const int32_t in_channels = hparams.in_channels;
-    const int32_t bias_size = hparams.bias_size;
+        printf("%s: tensor[%d]: n_dims = %d, name = %s, tensor_size=%zu, offset=%zu, shape: [%d, %d, %d, %d], type = %s\n",
+               __func__, i, ggml_n_dims(cur), cur->name, tensor_size, offset, cur->ne[0], cur->ne[1], cur->ne[2], cur->ne[3], ggml_type_name(type));
+    }
 
-    ctx_size += in_channels * ggml_type_size(GGML_TYPE_F32); // fp32 linear no bias
-    ctx_size += bias_size * ggml_type_size(GGML_TYPE_F32);   // fp32 bias
-
-    ctx_size += 10ull * MB;                 // object overhead
-    ctx_size += 2 * ggml_tensor_overhead(); // one linear and one bias
-
-    printf("%s: ggml tensor size    = %d bytes\n", __func__, (int)sizeof(ggml_tensor));
-    printf("%s: backend buffer size = %6.2f MB\n", __func__, ctx_size / (1024.0 * 1024.0));
-
-    return ctx_size;
+    return model_size;
 }
 
-bool init_model_context(module &model, size_t ctx_size)
+bool init_model_context(module &model, const int n_tensors)
 {
     struct ggml_init_params params = {
-        /* .mem_size   = */ ctx_size,
+        /* .mem_size   = */ (n_tensors + 1) * ggml_tensor_overhead(),
         /* .mem_buffer = */ NULL,
         /* .no_alloc   = */ true,
     };
@@ -97,7 +135,7 @@ bool init_model_backend(module &model)
     return true;
 }
 
-bool allocate_model_buffer(module &model)
+bool allocate_model_buffer(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta, std::ifstream &fin)
 {
     model.buffer = ggml_backend_alloc_ctx_tensors(model.ctx, model.backend);
     if (!model.buffer)
@@ -105,84 +143,26 @@ bool allocate_model_buffer(module &model)
         printf("%s: failed to allocate memory for the model\n", __func__);
         return false;
     }
-    return true;
-}
 
-bool load_weights(std::ifstream &infile, module &model)
-{
-    size_t total_size = 0;
-
-    while (true)
+    for (int i = 0; i < n_tensors; ++i)
     {
-        int32_t n_dims;
-        int32_t length;
-        int32_t ftype;
-
-        read_safe(infile, n_dims);
-        read_safe(infile, length);
-        read_safe(infile, ftype);
-
-        if (infile.eof())
+        const char *name = gguf_get_tensor_name(ctx, i);
+        struct ggml_tensor *cur = ggml_get_tensor(model.ctx, name);
+        const size_t offset = gguf_get_data_offset(ctx) + gguf_get_tensor_offset(ctx, i);
+        fin.seekg(offset, std::ios::beg);
+        if (!fin)
         {
-            break;
-        }
-
-        int64_t nelements = 1;
-        // TODO: FIX TO MULTIPLE SHAPES
-        int64_t ne[1] = {1};
-        for (int i = 0; i < n_dims; i++)
-        {
-            int32_t ne_cur;
-            read_safe(infile, ne_cur);
-            ne[i] = ne_cur;
-            nelements *= ne[i];
-        }
-
-        std::string name(length, 0);
-        infile.read(&name[0], length);
-
-        if (model.tensors.find(name.data()) == model.tensors.end())
-        {
-            fprintf(stderr, "%s: unknown tensor '%s' in model file\n", __func__, name.data());
+            printf("%s: failed to seek for tensor %s\n", __func__, name);
+            gguf_free(ctx);
             return false;
         }
-        else
+        int num_bytes = ggml_nbytes(cur);
+        if (ggml_backend_buffer_is_host(model.buffer))
         {
-            fprintf(stderr, "%s: found tensor '%s' in model file\n", __func__, name.data());
+            // for the CPU and Metal backend, we can read directly into the tensor
+            fin.read(reinterpret_cast<char *>(cur->data), num_bytes);
         }
-
-        auto tensor = model.tensors[name.data()];
-        ggml_set_name(tensor, name.c_str());
-
-        if (ggml_nelements(tensor) != nelements)
-        {
-            fprintf(stderr, "%s: tensor '%s' has wrong size in model file\n", __func__, name.data());
-            return false;
-        }
-
-        // TODO: FIX TO MULTIPLE SHAPES
-        if (tensor->ne[0] != ne[0])
-        {
-            fprintf(stderr, "%s: tensor '%s' has wrong shape in model file: got [%d], expected [%d]\n",
-                    __func__, name.data(), (int)tensor->ne[0], (int)ne[0]);
-            return false;
-        }
-
-        const size_t bpe = ggml_type_size(ggml_type(ftype));
-
-        if ((nelements * bpe) / ggml_blck_size(tensor->type) != ggml_nbytes(tensor))
-        {
-            fprintf(stderr, "%s: tensor '%s' has wrong size in model file: got %zu, expected %zu\n",
-                    __func__, name.data(), ggml_nbytes(tensor), (size_t)nelements * bpe);
-            return false;
-        }
-
-        infile.read(reinterpret_cast<char *>(tensor->data), ggml_nbytes(tensor));
-
-        total_size += ggml_nbytes(tensor);
     }
-
-    printf("%s: model size = %8.2f MB\n", __func__, total_size / 1024.0 / 1024.0);
     return true;
 }
 
@@ -207,35 +187,73 @@ bool load_model(const std::string &fname, module &model)
 
     const int n_tensors = gguf_get_n_tensors(ctx);
     const int n_kv = gguf_get_n_kv(ctx);
-    printf("N_TENSORS: %i\n", n_tensors);
-    printf("N_KV: %i\n", n_kv);
+    printf("%s: loaded meta data with %d key-value pairs and %d tensors from %s\n", __func__, n_kv, n_tensors, fname.c_str());
 
-    // load_hparams(ctx, model);
-    // size_t ctx_size = evaluate_context_size(model);
+    {
+        std::map<enum ggml_type, uint32_t> n_type;
 
-    // if (!init_model_context(model, ctx_size))
-    // {
-    //     return false;
-    // }
+        for (int i = 0; i < n_tensors; i++)
+        {
+            enum ggml_type type = gguf_get_tensor_type(ctx, i);
 
-    // create_model_weight_tensors(model);
+            n_type[type]++;
+        }
 
-    // if (!init_model_backend(model))
-    // {
-    //     return false;
-    // }
+        for (int i = 0; i < n_kv; i++)
+        {
+            const char *name = gguf_get_key(ctx, i);
+            const enum gguf_type type = gguf_get_kv_type(ctx, i);
+            const std::string type_name =
+                type == GGUF_TYPE_ARRAY
+                    ? format("%s[%s,%d]", gguf_type_name(type), gguf_type_name(gguf_get_arr_type(ctx, i)), gguf_get_arr_n(ctx, i))
+                    : gguf_type_name(type);
 
-    // if (!allocate_model_buffer(model))
-    // {
-    //     return false;
-    // }
+            printf("%s: key: %s - value_type: %s\n", __func__, name, type_name.c_str());
+        }
 
-    // if (!load_weights(infile, model))
-    // {
-    //     return false;
-    // }
+        // print type counts
+        for (auto &kv : n_type)
+        {
+            if (kv.second == 0)
+            {
+                continue;
+            }
 
-    // infile.close();
+            printf("%s: type %4s: %4d tensors\n", __func__, ggml_type_name(kv.first), kv.second);
+        }
+    }
+
+    size_t model_size = evaluate_context_size(model, n_tensors, ctx, meta);
+
+    if (!init_model_backend(model))
+    {
+        return false;
+    }
+
+    if (!init_model_context(model, n_tensors))
+    {
+        return false;
+    }
+
+    add_tensors_to_context(model, n_tensors, ctx, meta);
+
+    auto fin = std::ifstream(fname, std::ios::binary);
+    if (!fin)
+    {
+        fprintf(stderr, "%s: failed to open '%s'\n", __func__, fname.c_str());
+        return false;
+    }
+
+    if (!allocate_model_buffer(model, n_tensors, ctx, meta, fin))
+    {
+        return false;
+    }
+
+    fin.close();
+
+    load_hparams(model, ctx);
+    load_weights(model);
+
     return true;
 }
 
