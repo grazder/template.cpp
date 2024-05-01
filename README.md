@@ -42,10 +42,11 @@ python -m pytest tests/test.py
 
 - [x] Basic FF example
 - [x] Python-CPP tests
-- [ ] Add GGUF 
-- [ ] Trying on real model
+- [x] Add GGUF
+- [ ] Make cleaning
+- [ ] Try on real model
 - [ ] Adapt template for real case usage
-- [ ] Writing comments
+- [ ] Write comments
 - [ ] Add argparse for `model.cpp`
 - [ ] Support FP16
 - [ ] Quantization (?)

@@ -10,7 +10,7 @@ int main(void)
 
     // Load model and run forward
     module model;
-    load_model("../ggml-model.bin", model);
+    load_model("../example.gguf", model);
     struct ggml_tensor *result = compute(model, input);
 
     // Printing
