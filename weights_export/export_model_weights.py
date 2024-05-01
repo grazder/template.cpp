@@ -20,7 +20,9 @@ class Model(torch.nn.Module):
 
 def parse_hparams(gguf_writer):
     in_channels = 5
+    bias_size = 1
     gguf_writer.add_int32("in_channels", in_channels)
+    gguf_writer.add_int32("bias_size", bias_size)
 
 
 def parse_model(checkpoint, gguf_writer):
