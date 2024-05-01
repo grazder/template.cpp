@@ -10,12 +10,7 @@
 #include <map>
 #include <string>
 #include <vector>
-
-template <typename T>
-static void read_safe(std::ifstream &infile, T &dest)
-{
-    infile.read(reinterpret_cast<char *>(&dest), sizeof(T));
-}
+#include <limits.h>
 
 void add_tensors_to_context(module &model, const int n_tensors, gguf_context *ctx, ggml_context *meta)
 {
@@ -35,7 +30,7 @@ static std::string format(const char *fmt, ...)
     va_start(ap, fmt);
     va_copy(ap2, ap);
     int size = vsnprintf(NULL, 0, fmt, ap);
-    GGML_ASSERT(size >= 0 && size < INT_MAX); // NOLINT
+    GGML_ASSERT(size >= 0 && size < INT_MAX);
     std::vector<char> buf(size + 1);
     int size2 = vsnprintf(buf.data(), size + 1, fmt, ap2);
     GGML_ASSERT(size2 == size);
